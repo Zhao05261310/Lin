@@ -35,7 +35,7 @@ python AI協作.py --selftest
   - 刻意沒有刪除檔案的功能；危險的指令、讀取金鑰檔、提示注入都會先擋下或先問你。
 - **外部工具（MCP）**、**排程**、**自動更新**（驗證 SHA-256）、**匯出**（Markdown／HTML／PDF）。
 - **訓練工作室**：
-  - 語言模型蒸餾與 QLoRA 微調（可以匯入 Ollama）。
+  - 語言模型與 QLoRA 微調（可以匯入 Ollama）。
   - 語音生成與聲音訓練（F5-TTS）。
   - 圖片生成（SD 1.5／SDXL／SD 3.5／FLUX）與圖片 LoRA 訓練。
   - 影片生成（Wan／LTX／CogVideoX）與影片 LoRA 訓練。
