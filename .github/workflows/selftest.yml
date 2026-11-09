@@ -1,0 +1,88 @@
+# 每次推送與 PR：在 Windows 與 Ubuntu、Python 3.10 與 3.13 組合 AI協作.py 並跑自我測試，
+# 也確認提交的 AI協作.py 與 src/ 一致（忘了跑 build.py 會失敗）。
+# v6.13：另外真的開啟整個程式（跑 mainloop）並送拖放訊息（GUI 冒煙測試）；
+#        Windows 上再故意重現 v6.12.0 的拖放當機，確認冒煙測試真的抓得到這類錯誤。
+name: 自我測試
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python: ["3.10", "3.13"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: 組合並跑自我測試
+        run: python build.py --test
+      - name: 確認 AI協作.py 與 src/ 一致
+        shell: bash
+        run: git diff --exit-code -- AI協作.py AI協作.py.sha256
+      - name: GUI 冒煙測試（真的開啟程式、跑事件迴圈、送拖放訊息）
+        if: runner.os == 'Windows'
+        run: python AI協作.py --gui-smoke
+      - name: GUI 冒煙測試（Ubuntu，虛擬顯示器）
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get install -y -q xvfb >/dev/null 2>&1 || true
+          xvfb-run -a python AI協作.py --gui-smoke
+      - name: Windows 整合測試（剪貼簿圖片、Edge 轉 PDF、更新後重新啟動、當機紀錄、錄音）
+        if: runner.os == 'Windows'
+        run: python AI協作.py --win-integration
+      - name: 確認冒煙測試抓得到 v6.12.0 的拖放當機
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          if AI_COLLAB_SMOKE_OLD_DROP=1 python AI協作.py --gui-smoke; then
+            echo "故意重現舊的錯誤，程式卻沒有當掉：冒煙測試沒有效，請檢查" && exit 1
+          else
+            echo "如預期：舊的寫法會讓程式當掉，冒煙測試抓得到"
+          fi
+
+  # v6.14：訓練工作室的四條流程（語言模型、語音、影片 LoRA、影片生成）用極小模型在 CPU 上實際跑一次，
+  # 套件改版造成不相容時，在這裡就會先抓到，不會等到使用者的電腦上才發現。
+  train-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: "1"
+      HF_HUB_DISABLE_PROGRESS_BARS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 模擬常見的 conda 環境（PyTorch 2.11.0，缺 torchaudio、f5-tts、imageio）
+        shell: bash
+        run: |
+          python -m pip install -q "torch==2.11.0" --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -q transformers peft accelerate safetensors sentencepiece diffusers ftfy imageio-ffmpeg soundfile
+      - name: 用程式的「安裝缺少的套件」實際安裝（檢查 → 安裝 → 再檢查；PyTorch 不能被換掉）
+        shell: bash
+        run: |
+          python AI協作.py --train-setup
+          python -c "import torch, torchaudio; v = torch.__version__; print('torch', v, 'torchaudio', torchaudio.__version__); assert v.startswith('2.11.0'), 'PyTorch 被換掉了'"
+      - name: 訓練流程快速測試
+        run: python AI協作.py --train-smoke

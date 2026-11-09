@@ -1,0 +1,4 @@
+# 程式與文件一律用 LF，Windows 與雲端看到的內容一致（重新組合 AI協作.py 不會被當成修改）
+* text=auto eol=lf
+# 打包腳本要保持 CRLF 與 Big5 編碼（cmd 才讀得懂中文），原封不動
+*.bat -text
